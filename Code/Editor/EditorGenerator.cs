@@ -39,7 +39,6 @@ namespace Beans.Unity.Editor.EditorGenerator
 			var classCode = CreateClassCode (script);
 
 			namespaceCode.Types.Add (classCode);
-
 			unitCode.Namespaces.Add (namespaceCode);
 		}
 
@@ -50,9 +49,11 @@ namespace Beans.Unity.Editor.EditorGenerator
 			// Set name
 			var name = script.GetClass ().Namespace;
 			if (!string.IsNullOrEmpty (name))
+			{
 				namespaceCode.Name = $"{name}Editor";
+				namespaceCode.Imports.Add (new CodeNamespaceImport (name));
+			}
 
-			// Add imports
 			namespaceCode.Imports.Add (new CodeNamespaceImport ("UnityEditor"));
 
 			return namespaceCode;
@@ -69,9 +70,18 @@ namespace Beans.Unity.Editor.EditorGenerator
 			classCode.IsClass = true;
 			classCode.TypeAttributes = TypeAttributes.Public;
 
+			CreateCustomEditorAttribute (classCode);
 			CreateMethods (classCode);
 
 			return classCode;
+		}
+
+		private void CreateCustomEditorAttribute (CodeTypeDeclaration classCode)
+		{
+			var customEditorAttributeCode = new CodeAttributeDeclaration (new CodeTypeReference (typeof (CustomEditor)));
+			customEditorAttributeCode.Arguments.Add (new CodeAttributeArgument (new CodeTypeOfExpression (script.GetClass ())));
+
+			classCode.CustomAttributes.Add (customEditorAttributeCode);
 		}
 
 		private void CreateMethods (CodeTypeDeclaration classCode)
