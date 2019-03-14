@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.IO;
 using System.CodeDom;
@@ -11,10 +14,10 @@ namespace Beans.Unity.Editor.EditorGenerator
 {
 	public class EditorGenerator
 	{
+		private static string Path = "Assets";
+
 		private MonoScript script;
 		private CodeCompileUnit unitCode;
-
-		private static string Path = "Assets";
 
 		public static bool IsValidMonoScript (MonoScript script)
 		{
@@ -36,9 +39,8 @@ namespace Beans.Unity.Editor.EditorGenerator
 			unitCode = new CodeCompileUnit ();
 
 			var namespaceCode = CreateNamespaceCode (script);
-			var classCode = CreateClassCode (script);
 
-			namespaceCode.Types.Add (classCode);
+			namespaceCode.Types.Add (CreateClassCode (script));
 			unitCode.Namespaces.Add (namespaceCode);
 		}
 
@@ -49,10 +51,7 @@ namespace Beans.Unity.Editor.EditorGenerator
 			// Set name
 			var name = script.GetClass ().Namespace;
 			if (!string.IsNullOrEmpty (name))
-			{
 				namespaceCode.Name = $"{name}Editor";
-				namespaceCode.Imports.Add (new CodeNamespaceImport (name));
-			}
 
 			namespaceCode.Imports.Add (new CodeNamespaceImport ("UnityEditor"));
 
@@ -70,7 +69,9 @@ namespace Beans.Unity.Editor.EditorGenerator
 			classCode.IsClass = true;
 			classCode.TypeAttributes = TypeAttributes.Public;
 
+			// Create all the code for the class
 			CreateCustomEditorAttribute (classCode);
+			CreateFields (classCode, script);
 			CreateMethods (classCode);
 
 			return classCode;
@@ -82,6 +83,47 @@ namespace Beans.Unity.Editor.EditorGenerator
 			customEditorAttributeCode.Arguments.Add (new CodeAttributeArgument (new CodeTypeOfExpression (script.GetClass ())));
 
 			classCode.CustomAttributes.Add (customEditorAttributeCode);
+		}
+
+		private void CreateFields (CodeTypeDeclaration classCode, MonoScript script)
+		{
+			var allFields = script.GetClass ().GetFields (BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+			var serializedFields = GetSerializedFields (allFields);
+
+			foreach (var field in serializedFields)
+			{
+				var newFieldCode = new CodeMemberField ();
+
+				newFieldCode.Type = new CodeTypeReference (typeof (GUIContent));
+				newFieldCode.Name = $"{field.Name}Content";
+
+				classCode.Members.Add (newFieldCode);
+			}
+
+			IEnumerable<FieldInfo> GetSerializedFields (FieldInfo[] fields)
+			{
+				for (int i = 0; i < fields.Length; i++)
+				{
+					var field = fields[i];
+
+					var hasSerializeAttribute = false;
+					var hasNonSerializedAttribute = false;
+
+					var attributes = field.GetCustomAttributes ();
+					foreach (var a in attributes)
+					{
+						if (a is SerializeField)
+							hasSerializeAttribute = true;
+						if (a is NonSerializedAttribute)
+							hasNonSerializedAttribute = true;
+					}
+
+					if ((!hasNonSerializedAttribute && field.IsPublic) || hasSerializeAttribute)
+						yield return field;
+				}
+
+				yield break;
+			}
 		}
 
 		private void CreateMethods (CodeTypeDeclaration classCode)
