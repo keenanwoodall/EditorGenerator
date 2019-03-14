@@ -60,8 +60,9 @@ namespace Beans.Unity.Editor.EditorGenerator
 				if (GUILayout.Button ("Generate"))
 				{
 					generator = new EditorGenerator (script);
-					generator.Generate ();
+					var editorScript = generator.Generate ();
 					AssetDatabase.Refresh ();
+					EditorGUIUtility.PingObject (editorScript);
 				}
 			}
 		}
