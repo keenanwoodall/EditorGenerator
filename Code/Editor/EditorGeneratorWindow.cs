@@ -7,6 +7,8 @@ namespace Beans.Unity.Editor.EditorGenerator
 	{
 		private class Content
 		{
+			public const string InvalidScriptWarning = "Script must derive from MonoBehaviour or ScriptableObject.";
+
 			public static readonly GUIContent Title = new GUIContent ("Editor Generator");
 			public static readonly GUIContent Script = new GUIContent ("Script");
 		}
@@ -55,7 +57,12 @@ namespace Beans.Unity.Editor.EditorGenerator
 
 			script = (MonoScript)EditorGUILayout.ObjectField (Content.Script, script, typeof (MonoScript), false);
 
-			using (new EditorGUI.DisabledGroupScope (script == null))
+			var isValidScript = EditorGenerator.IsValidMonoScript (script);
+
+			if (script!= null && !isValidScript)
+				EditorGUILayout.HelpBox (Content.InvalidScriptWarning, MessageType.Error);
+
+			using (new EditorGUI.DisabledGroupScope (!isValidScript))
 			{
 				if (GUILayout.Button ("Generate"))
 				{

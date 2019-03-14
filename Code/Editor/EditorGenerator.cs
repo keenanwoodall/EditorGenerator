@@ -4,6 +4,7 @@ using System.IO;
 using System.CodeDom;
 using System.CodeDom.Compiler;
 using Microsoft.CSharp;
+using UnityEngine;
 using UnityEditor;
 
 namespace Beans.Unity.Editor.EditorGenerator
@@ -15,9 +16,22 @@ namespace Beans.Unity.Editor.EditorGenerator
 
 		private static string Path = "Assets";
 
+		public static bool IsValidMonoScript (MonoScript script)
+		{
+			if (script == null)
+				return false;
+
+			var scriptClass = script.GetClass ();
+			return scriptClass.IsSubclassOf (typeof (MonoBehaviour)) || scriptClass.IsSubclassOf (typeof (ScriptableObject));
+		}
+
 		public EditorGenerator (MonoScript script)
 		{
-			this.script = script ?? throw new NullReferenceException ("Script cannot be null.");
+			this.script = script ?? throw new ArgumentNullException ("Script cannot be null.");
+
+			var scriptClass = script.GetClass ();
+			if (!IsValidMonoScript (script))
+				throw new ArgumentException ("Script must derive from MonoBehaviour or ScriptableObject.");
 
 			unitCode = new CodeCompileUnit ();
 
