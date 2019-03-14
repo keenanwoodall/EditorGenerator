@@ -50,11 +50,32 @@ namespace Beans.Unity.Editor.EditorGenerator
 
 			// Make class inherit from Editor
 			classCode.BaseTypes.Add ("Editor");
+
 			// Make unit a public class
 			classCode.IsClass = true;
 			classCode.TypeAttributes = TypeAttributes.Public;
 
+			CreateMethods (classCode);
+
 			return classCode;
+		}
+
+		private void CreateMethods (CodeTypeDeclaration classCode)
+		{
+			var onEnableCode = new CodeMemberMethod ()
+			{
+				Name = "OnEnable",
+				Attributes = MemberAttributes.Private
+			};
+
+			var inspectorGUICode = new CodeMemberMethod ()
+			{
+				Name = "OnInspectorGUI",
+				Attributes = MemberAttributes.Public | MemberAttributes.Override
+			};
+
+			classCode.Members.Add (onEnableCode);
+			classCode.Members.Add (inspectorGUICode);
 		}
 
 		public MonoScript Generate ()
