@@ -109,6 +109,10 @@ namespace Beans.Unity.Editor.EditorGenerator
 			if (string.IsNullOrEmpty (Path))
 				return null;
 
+			var oldScript = (MonoScript)AssetDatabase.LoadAssetAtPath (Path, typeof (MonoScript));
+			if (oldScript == null)
+				AssetDatabase.DeleteAsset (Path);
+
 			var provider = CodeDomProvider.CreateProvider ("CSharp");
 			var options = new CodeGeneratorOptions ()
 			{
