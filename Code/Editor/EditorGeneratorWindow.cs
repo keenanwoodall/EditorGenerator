@@ -49,6 +49,11 @@ namespace Beans.Unity.Editor.EditorGenerator
 			window.minSize = Styles.MinSize;
 		}
 
+		private void OnEnable ()
+		{
+			generator = new EditorGenerator ();
+		}
+
 		private void OnGUI ()
 		{
 			EditorGUILayout.LabelField (Content.Title, Styles.Title);
@@ -66,8 +71,8 @@ namespace Beans.Unity.Editor.EditorGenerator
 			{
 				if (GUILayout.Button ("Generate"))
 				{
-					generator = new EditorGenerator (script);
-					var editorScript = generator.Generate ();
+					generator.Create (script);
+					var editorScript = generator.Save ();
 					AssetDatabase.Refresh ();
 					EditorGUIUtility.PingObject (editorScript);
 				}

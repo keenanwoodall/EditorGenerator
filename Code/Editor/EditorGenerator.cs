@@ -14,7 +14,7 @@ namespace Beans.Unity.Editor.EditorGenerator
 {
 	public class EditorGenerator
 	{
-		private static string Path = "Assets";
+		private string path = "Assets";
 
 		private MonoScript script;
 		private CodeCompileUnit unitCode;
@@ -28,7 +28,7 @@ namespace Beans.Unity.Editor.EditorGenerator
 			return scriptClass.IsSubclassOf (typeof (MonoBehaviour)) || scriptClass.IsSubclassOf (typeof (ScriptableObject));
 		}
 
-		public EditorGenerator (MonoScript script)
+		public void Create (MonoScript script)
 		{
 			this.script = script ?? throw new ArgumentNullException ("Script cannot be null.");
 
@@ -144,16 +144,16 @@ namespace Beans.Unity.Editor.EditorGenerator
 			classCode.Members.Add (inspectorGUICode);
 		}
 
-		public MonoScript Generate ()
+		public MonoScript Save ()
 		{
-			Path = EditorUtility.SaveFilePanelInProject ("Save script", $"{script.name}Editor", "cs", "", Path);
+			path = EditorUtility.SaveFilePanelInProject ("Save script", $"{script.name}Editor", "cs", "", path);
 
-			if (string.IsNullOrEmpty (Path))
+			if (string.IsNullOrEmpty (path))
 				return null;
 
-			var oldScript = (MonoScript)AssetDatabase.LoadAssetAtPath (Path, typeof (MonoScript));
+			var oldScript = (MonoScript)AssetDatabase.LoadAssetAtPath (path, typeof (MonoScript));
 			if (oldScript == null)
-				AssetDatabase.DeleteAsset (Path);
+				AssetDatabase.DeleteAsset (path);
 
 			var provider = CodeDomProvider.CreateProvider ("CSharp");
 			var options = new CodeGeneratorOptions ()
@@ -161,10 +161,10 @@ namespace Beans.Unity.Editor.EditorGenerator
 				BracingStyle = "C"
 			};
 
-			using (var writer = new StreamWriter (Path))
+			using (var writer = new StreamWriter (path))
 				provider.GenerateCodeFromCompileUnit (unitCode, writer, options);
 
-			return (MonoScript)AssetDatabase.LoadAssetAtPath (Path, typeof (MonoScript));
+			return (MonoScript)AssetDatabase.LoadAssetAtPath (path, typeof (MonoScript));
 		}
 	}
 }
