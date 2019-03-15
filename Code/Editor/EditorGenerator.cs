@@ -1,12 +1,10 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
+using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.CodeDom;
 using System.CodeDom.Compiler;
-using Microsoft.CSharp;
 using UnityEngine;
 using UnityEditor;
 
@@ -60,7 +58,7 @@ namespace Beans.Unity.Editor.EditorGenerator
 			if (oldScript == null)
 			{
 				AssetDatabase.DeleteAsset (path);
-				AssetDatabase.Refresh (ImportAssetOptions.ForceUpdate);
+				AssetDatabase.Refresh (ImportAssetOptions.ForceSynchronousImport);
 			}
 
 			var provider = CodeDomProvider.CreateProvider ("CSharp");
@@ -148,19 +146,7 @@ namespace Beans.Unity.Editor.EditorGenerator
 
 		private void CreateMethods (CodeTypeDeclaration classCode)
 		{
-			classCode.Members.Add (CreateOnEnableMethod ());
 			classCode.Members.Add (CreateOnInspectorGUIMethod ());
-		}
-
-		private CodeMemberMethod CreateOnEnableMethod ()
-		{
-			var onEnableCode = new CodeMemberMethod ()
-			{
-				Name = "OnEnable",
-				Attributes = MemberAttributes.Private
-			};
-
-			return onEnableCode;
 		}
 
 		private CodeMemberMethod CreateOnInspectorGUIMethod ()
@@ -171,29 +157,41 @@ namespace Beans.Unity.Editor.EditorGenerator
 				Attributes = MemberAttributes.Public | MemberAttributes.Override
 			};
 
+			// UpdateIfRequiredOrScript
+			inspectorGUICode.Statements.Add (new CodeMethodInvokeExpression (new CodeMethodReferenceExpression (new CodeVariableReferenceExpression ("serializedObject"), "UpdateIfRequiredOrScript")));
+
+			// Property Fields
 			foreach (var field in serializedFields)
 			{
-				var propertyFieldParameters = new CodeExpression[]
-				{
-					new CodeMethodInvokeExpression
-					(
-						new CodeMethodReferenceExpression
-						(
-							new CodeVariableReferenceExpression
-							(
-								"serializedObject"
-							),
-							"FindProperty"
-						),
-						new CodePrimitiveExpression (field.Name)
-					)
-				};
-
-				var lineCode = new CodeMethodInvokeExpression (new CodeTypeReferenceExpression (typeof (EditorGUILayout)), "PropertyField", propertyFieldParameters);
-				inspectorGUICode.Statements.Add (lineCode);
+				var fieldStatement = CreateDrawPropertyFieldStatement (field);
+				inspectorGUICode.Statements.Add (fieldStatement);
 			}
 
+			// ApplyModifiedProperties
+			inspectorGUICode.Statements.Add (new CodeMethodInvokeExpression (new CodeMethodReferenceExpression (new CodeVariableReferenceExpression ("serializedObject"), "ApplyModifiedProperties")));
+
 			return inspectorGUICode;
+		}
+
+		private CodeExpression CreateDrawPropertyFieldStatement (FieldInfo field)
+		{
+			var propertyFieldParameters = new CodeExpression[]
+			{
+				new CodeMethodInvokeExpression
+				(
+					new CodeMethodReferenceExpression
+					(
+						new CodeVariableReferenceExpression
+						(
+							"serializedObject"
+						),
+						"FindProperty"
+					),
+					new CodePrimitiveExpression (field.Name)
+				)
+			};
+
+			return new CodeMethodInvokeExpression (new CodeTypeReferenceExpression (typeof (EditorGUILayout)), "PropertyField", propertyFieldParameters);
 		}
 
 		private static IEnumerable<FieldInfo> GetSerializedFields (MonoScript script)
