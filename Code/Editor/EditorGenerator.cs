@@ -102,18 +102,20 @@ namespace Beans.Unity.Editor.EditorGenerator
 			classCode.TypeAttributes = TypeAttributes.Public;
 
 			// Create all the code for the class
-			CreateCustomEditorAttribute (classCode);
+			CreateAttributes (classCode);
 			CreateFields (classCode, script);
 			CreateMethods (classCode);
 
 			return classCode;
 		}
 
-		private void CreateCustomEditorAttribute (CodeTypeDeclaration classCode)
+		private void CreateAttributes (CodeTypeDeclaration classCode)
 		{
+			var canEditMultipleObjectsAttributeCode = new CodeAttributeDeclaration (new CodeTypeReference (typeof (CanEditMultipleObjects)));
 			var customEditorAttributeCode = new CodeAttributeDeclaration (new CodeTypeReference (typeof (CustomEditor)));
 			customEditorAttributeCode.Arguments.Add (new CodeAttributeArgument (new CodeTypeOfExpression (script.GetClass ())));
 
+			classCode.CustomAttributes.Add (canEditMultipleObjectsAttributeCode);
 			classCode.CustomAttributes.Add (customEditorAttributeCode);
 		}
 
