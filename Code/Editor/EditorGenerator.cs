@@ -180,10 +180,22 @@ namespace Beans.Unity.Editor.EditorGenerator
 							formattedExpression = CreateSliderStatement (field, range);
 							break;
 						case TextAreaAttribute textArea:
-							Debug.Log ("TextArea attribute not supported yet.");
+							Debug.Log ("TextAreaAttribute not supported yet.");
 							break;
 						case MultilineAttribute multiline:
-							Debug.Log ("Multiline attribute not supported yet.");
+							Debug.Log ("MultilineAttribute not supported yet.");
+							break;
+						case ContextMenuItemAttribute contextMenuItem:
+							Debug.Log ("ContextMenuItemAttribute not supported yet.");
+							break;
+						case GradientUsageAttribute gradientUsage:
+							Debug.Log ("GradientUsageAttribute  not supported yet.");
+							break;
+						case DelayedAttribute delayed:
+							Debug.Log ("DelayedAttribute not supported yet.");
+							break;
+						case MinAttribute min:
+							Debug.Log ("MinAttribute not supported yet.");
 							break;
 					}
 				}
