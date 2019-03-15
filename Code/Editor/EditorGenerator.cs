@@ -130,7 +130,7 @@ namespace Beans.Unity.Editor.EditorGenerator
 
 				var parameters = new CodeExpression[tooltip == null ? 1 : 2];
 
-				parameters[0] = new CodePrimitiveExpression (field.Name);
+				parameters[0] = new CodePrimitiveExpression (ObjectNames.NicifyVariableName (field.Name));
 				if (tooltip != null)
 					parameters[1] = new CodePrimitiveExpression (tooltip.tooltip);
 
