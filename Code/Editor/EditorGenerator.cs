@@ -173,8 +173,11 @@ namespace Beans.Unity.Editor.EditorGenerator
 						case HeaderAttribute header:
 							inspectorGUICode.Statements.Add (CreateHeaderStatement (field, header));
 							break;
+						case SpaceAttribute space:
+							inspectorGUICode.Statements.Add (CreateSpaceStatement (field, space));
+							break;
 						case RangeAttribute range:
-							formattedExpression = CreateDrawSliderStatement (field, range);
+							formattedExpression = CreateSliderStatement (field, range);
 							break;
 					}
 				}
@@ -182,7 +185,7 @@ namespace Beans.Unity.Editor.EditorGenerator
 				if (formattedExpression != null)
 					inspectorGUICode.Statements.Add (formattedExpression);
 				else
-					inspectorGUICode.Statements.Add (CreateDrawPropertyFieldStatement (field));
+					inspectorGUICode.Statements.Add (CreatePropertyFieldStatement (field));
 			}
 
 			// ApplyModifiedProperties
@@ -202,7 +205,18 @@ namespace Beans.Unity.Editor.EditorGenerator
 			return new CodeMethodInvokeExpression (new CodeTypeReferenceExpression (typeof (EditorGUILayout)), "LabelField", propertyFieldParameters);
 		}
 
-		private CodeExpression CreateDrawPropertyFieldStatement (FieldInfo field)
+		private CodeExpression CreateSpaceStatement (FieldInfo field, SpaceAttribute space)
+		{
+			var propertyFieldParameters = new CodeExpression[]
+			{
+				new CodePrimitiveExpression (false),
+				new CodePrimitiveExpression (space.height),
+			};
+
+			return new CodeMethodInvokeExpression (new CodeTypeReferenceExpression (typeof (EditorGUILayout)), "GetControlRect", propertyFieldParameters);
+		}
+
+		private CodeExpression CreatePropertyFieldStatement (FieldInfo field)
 		{
 			var propertyFieldParameters = new CodeExpression[]
 			{
@@ -224,31 +238,7 @@ namespace Beans.Unity.Editor.EditorGenerator
 			return new CodeMethodInvokeExpression (new CodeTypeReferenceExpression (typeof (EditorGUILayout)), "PropertyField", propertyFieldParameters);
 		}
 
-		private CodeExpression CreateDrawSliderStatement (FieldInfo field, RangeAttribute range)
-		{
-			var propertyFieldParameters = new CodeExpression[]
-			{
-				new CodeMethodInvokeExpression
-				(
-					new CodeMethodReferenceExpression
-					(
-						new CodeVariableReferenceExpression
-						(
-							"serializedObject"
-						),
-						"FindProperty"
-					),
-					new CodePrimitiveExpression (field.Name)
-				),
-				new CodePrimitiveExpression (range.min),
-				new CodePrimitiveExpression (range.max),
-				new CodeVariableReferenceExpression ($"{field.Name}Content")
-			};
-
-			return new CodeMethodInvokeExpression (new CodeTypeReferenceExpression (typeof (EditorGUILayout)), "Slider", propertyFieldParameters);
-		}
-
-		private CodeExpression CreateDrawTextAreaStatement (FieldInfo field, RangeAttribute range)
+		private CodeExpression CreateSliderStatement (FieldInfo field, RangeAttribute range)
 		{
 			var propertyFieldParameters = new CodeExpression[]
 			{
