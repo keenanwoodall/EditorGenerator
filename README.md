@@ -1,5 +1,5 @@
 # EditorGenerator
-A tool that generates custom editors in Unity for a script that is a subclass of `MonoBehaviour` or `ScriptableObject`. 
+A tool that generates custom editors in Unity for any script that is a subclass of `MonoBehaviour` or `ScriptableObject`. 
 
 This is my first foray in code generation, so my code (as well as the generated code) is pretty ugly right now and will probably break easily. This is more of an intitial proof of concept than a finished tool.
 
