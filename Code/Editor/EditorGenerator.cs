@@ -179,6 +179,12 @@ namespace Beans.Unity.Editor.EditorGenerator
 						case RangeAttribute range:
 							formattedExpression = CreateSliderStatement (field, range);
 							break;
+						case TextAreaAttribute textArea:
+							Debug.Log ("TextArea attribute not supported yet.");
+							break;
+						case MultilineAttribute multiline:
+							Debug.Log ("Multiline attribute not supported yet.");
+							break;
 					}
 				}
 

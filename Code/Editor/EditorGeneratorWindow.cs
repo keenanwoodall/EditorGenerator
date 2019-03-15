@@ -73,6 +73,8 @@ namespace Beans.Unity.Editor.EditorGenerator
 				{
 					generator.Create (script);
 					EditorGUIUtility.PingObject (generator.Save ());
+
+					Debug.Log ($"<b>Don't forget to remove GUI attributes from {script.name}.</b> If you don't, they'll be drawn by the custom editor <i>and</i> the attributes.");
 				}
 			}
 		}
