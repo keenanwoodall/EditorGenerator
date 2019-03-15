@@ -15,9 +15,12 @@ namespace Beans.Unity.Editor.EditorGenerator
 	public class EditorGenerator
 	{
 		private string path = "Assets";
+		private string editorTypeName;
 
 		private MonoScript script;
 		private CodeCompileUnit unitCode;
+
+		private IEnumerable<FieldInfo> serializedFields;
 
 		public static bool IsValidMonoScript (MonoScript script)
 		{
@@ -38,10 +41,40 @@ namespace Beans.Unity.Editor.EditorGenerator
 
 			unitCode = new CodeCompileUnit ();
 
+			serializedFields = GetSerializedFields (script);
+
 			var namespaceCode = CreateNamespaceCode (script);
 
 			namespaceCode.Types.Add (CreateClassCode (script));
 			unitCode.Namespaces.Add (namespaceCode);
+		}
+
+		public MonoScript Save ()
+		{
+			path = EditorUtility.SaveFilePanelInProject ("Save script", $"{script.name}Editor", "cs", "", path);
+
+			if (string.IsNullOrEmpty (path))
+				return null;
+
+			var oldScript = (MonoScript)AssetDatabase.LoadAssetAtPath (path, typeof (MonoScript));
+			if (oldScript == null)
+			{
+				AssetDatabase.DeleteAsset (path);
+				AssetDatabase.Refresh (ImportAssetOptions.ForceUpdate);
+			}
+
+			var provider = CodeDomProvider.CreateProvider ("CSharp");
+			var options = new CodeGeneratorOptions ()
+			{
+				BracingStyle = "C"
+			};
+
+			using (var writer = new StreamWriter (path))
+				provider.GenerateCodeFromCompileUnit (unitCode, writer, options);
+
+			AssetDatabase.Refresh (ImportAssetOptions.ForceUpdate);
+
+			return (MonoScript)AssetDatabase.LoadAssetAtPath (path, typeof (MonoScript));
 		}
 
 		private CodeNamespace CreateNamespaceCode (MonoScript script)
@@ -60,7 +93,8 @@ namespace Beans.Unity.Editor.EditorGenerator
 
 		private CodeTypeDeclaration CreateClassCode (MonoScript script)
 		{
-			var classCode = new CodeTypeDeclaration ($"{script.name}Editor");
+			editorTypeName = script.name;
+			var classCode = new CodeTypeDeclaration ($"{editorTypeName}Editor");
 
 			// Make class inherit from Editor
 			classCode.BaseTypes.Add ("Editor");
@@ -87,9 +121,6 @@ namespace Beans.Unity.Editor.EditorGenerator
 
 		private void CreateFields (CodeTypeDeclaration classCode, MonoScript script)
 		{
-			var allFields = script.GetClass ().GetFields (BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-			var serializedFields = GetSerializedFields (allFields);
-
 			foreach (var field in serializedFields)
 			{
 				var newFieldCode = new CodeMemberField ();
@@ -97,36 +128,31 @@ namespace Beans.Unity.Editor.EditorGenerator
 				newFieldCode.Type = new CodeTypeReference (typeof (GUIContent));
 				newFieldCode.Name = $"{field.Name}Content";
 
+				var tooltip = (TooltipAttribute)field.GetCustomAttributes ().FirstOrDefault (a => a is TooltipAttribute);
+
+				var parameters = new CodeExpression[tooltip == null ? 1 : 2];
+
+				parameters[0] = new CodePrimitiveExpression (field.Name);
+				if (tooltip != null)
+					parameters[1] = new CodePrimitiveExpression (tooltip.tooltip);
+
+				newFieldCode.InitExpression = new CodeObjectCreateExpression 
+				(
+					createType: typeof (GUIContent),
+					parameters: parameters
+				);
+
 				classCode.Members.Add (newFieldCode);
-			}
-
-			IEnumerable<FieldInfo> GetSerializedFields (FieldInfo[] fields)
-			{
-				for (int i = 0; i < fields.Length; i++)
-				{
-					var field = fields[i];
-
-					var hasSerializeAttribute = false;
-					var hasNonSerializedAttribute = false;
-
-					var attributes = field.GetCustomAttributes ();
-					foreach (var a in attributes)
-					{
-						if (a is SerializeField)
-							hasSerializeAttribute = true;
-						if (a is NonSerializedAttribute)
-							hasNonSerializedAttribute = true;
-					}
-
-					if ((!hasNonSerializedAttribute && field.IsPublic) || hasSerializeAttribute)
-						yield return field;
-				}
-
-				yield break;
 			}
 		}
 
 		private void CreateMethods (CodeTypeDeclaration classCode)
+		{
+			classCode.Members.Add (CreateOnEnableMethod ());
+			classCode.Members.Add (CreateOnInspectorGUIMethod ());
+		}
+
+		private CodeMemberMethod CreateOnEnableMethod ()
 		{
 			var onEnableCode = new CodeMemberMethod ()
 			{
@@ -134,37 +160,66 @@ namespace Beans.Unity.Editor.EditorGenerator
 				Attributes = MemberAttributes.Private
 			};
 
+			return onEnableCode;
+		}
+
+		private CodeMemberMethod CreateOnInspectorGUIMethod ()
+		{
 			var inspectorGUICode = new CodeMemberMethod ()
 			{
 				Name = "OnInspectorGUI",
 				Attributes = MemberAttributes.Public | MemberAttributes.Override
 			};
 
-			classCode.Members.Add (onEnableCode);
-			classCode.Members.Add (inspectorGUICode);
+			foreach (var field in serializedFields)
+			{
+				var propertyFieldParameters = new CodeExpression[]
+				{
+					new CodeMethodInvokeExpression
+					(
+						new CodeMethodReferenceExpression
+						(
+							new CodeVariableReferenceExpression
+							(
+								"serializedObject"
+							),
+							"FindProperty"
+						),
+						new CodePrimitiveExpression (field.Name)
+					)
+				};
+
+				var lineCode = new CodeMethodInvokeExpression (new CodeTypeReferenceExpression (typeof (EditorGUILayout)), "PropertyField", propertyFieldParameters);
+				inspectorGUICode.Statements.Add (lineCode);
+			}
+
+			return inspectorGUICode;
 		}
 
-		public MonoScript Save ()
+		private static IEnumerable<FieldInfo> GetSerializedFields (MonoScript script)
 		{
-			path = EditorUtility.SaveFilePanelInProject ("Save script", $"{script.name}Editor", "cs", "", path);
-
-			if (string.IsNullOrEmpty (path))
-				return null;
-
-			var oldScript = (MonoScript)AssetDatabase.LoadAssetAtPath (path, typeof (MonoScript));
-			if (oldScript == null)
-				AssetDatabase.DeleteAsset (path);
-
-			var provider = CodeDomProvider.CreateProvider ("CSharp");
-			var options = new CodeGeneratorOptions ()
+			var fields = script.GetClass ().GetFields (BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			for (int i = 0; i < fields.Length; i++)
 			{
-				BracingStyle = "C"
-			};
+				var field = fields[i];
 
-			using (var writer = new StreamWriter (path))
-				provider.GenerateCodeFromCompileUnit (unitCode, writer, options);
+				var hasSerializeAttribute = false;
+				var hasNonSerializedAttribute = false;
 
-			return (MonoScript)AssetDatabase.LoadAssetAtPath (path, typeof (MonoScript));
+				var attributes = field.GetCustomAttributes ();
+				foreach (var a in attributes)
+				{
+					if (a is SerializeField)
+						hasSerializeAttribute = true;
+					if (a is NonSerializedAttribute)
+						hasNonSerializedAttribute = true;
+				}
+
+				if ((!hasNonSerializedAttribute && field.IsPublic) || hasSerializeAttribute)
+					yield return field;
+			}
+
+			yield break;
 		}
 	}
 }
