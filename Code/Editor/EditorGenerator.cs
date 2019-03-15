@@ -163,8 +163,16 @@ namespace Beans.Unity.Editor.EditorGenerator
 			// Property Fields
 			foreach (var field in serializedFields)
 			{
-				var fieldStatement = CreateDrawPropertyFieldStatement (field);
-				inspectorGUICode.Statements.Add (fieldStatement);
+				var attributes = field.GetCustomAttributes ();
+
+				var range = (RangeAttribute)attributes.FirstOrDefault (a => a is RangeAttribute);
+				if (range != null)
+				{
+					inspectorGUICode.Statements.Add (CreateDrawSliderStatement (field, range));
+					continue;
+				}
+
+				inspectorGUICode.Statements.Add (CreateDrawPropertyFieldStatement (field));
 			}
 
 			// ApplyModifiedProperties
@@ -188,10 +196,35 @@ namespace Beans.Unity.Editor.EditorGenerator
 						"FindProperty"
 					),
 					new CodePrimitiveExpression (field.Name)
-				)
+				),
+				new CodeVariableReferenceExpression ($"{field.Name}Content")
 			};
 
 			return new CodeMethodInvokeExpression (new CodeTypeReferenceExpression (typeof (EditorGUILayout)), "PropertyField", propertyFieldParameters);
+		}
+
+		private CodeExpression CreateDrawSliderStatement (FieldInfo field, RangeAttribute range)
+		{
+			var propertyFieldParameters = new CodeExpression[]
+			{
+				new CodeMethodInvokeExpression
+				(
+					new CodeMethodReferenceExpression
+					(
+						new CodeVariableReferenceExpression
+						(
+							"serializedObject"
+						),
+						"FindProperty"
+					),
+					new CodePrimitiveExpression (field.Name)
+				),
+				new CodePrimitiveExpression (range.min),
+				new CodePrimitiveExpression (range.max),
+				new CodeVariableReferenceExpression ($"{field.Name}Content")
+			};
+
+			return new CodeMethodInvokeExpression (new CodeTypeReferenceExpression (typeof (EditorGUILayout)), "Slider", propertyFieldParameters);
 		}
 
 		private static IEnumerable<FieldInfo> GetSerializedFields (MonoScript script)
